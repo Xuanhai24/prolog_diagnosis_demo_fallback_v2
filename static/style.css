@@ -1,0 +1,18 @@
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: #f6f7fb; margin: 0; color: #222; }
+.container { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+h1 { margin: 0 0 8px; }
+.disclaimer { color: #9a6200; background: #fff3cd; border: 1px solid #ffeeba; padding: 8px 12px; border-radius: 8px; }
+.card { background: #fff; border-radius: 12px; padding: 16px; margin: 16px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.card h2 { margin-top: 0; }
+textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+button { padding: 8px 12px; border: 1px solid #ddd; background: #fafafa; border-radius: 8px; cursor: pointer; }
+button:hover { background: #eee; }
+.checkboxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px 16px; }
+.chk { display: flex; gap: 6px; align-items: center; }
+.actions { display: flex; gap: 8px; margin-top: 8px; }
+.question { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+.diagnosis-list .diag-item { padding: 8px 12px; border: 1px dashed #ddd; border-radius: 8px; margin: 8px 0; }
+.diagnosis-list .line { margin: 2px 0; }
+.diagnosis-list .advice { color: #2a5a2a; }
+.triage { font-size: 15px; margin-bottom: 8px; }

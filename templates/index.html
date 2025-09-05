@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chẩn đoán bệnh (Demo Prolog)</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>🩺 Demo Hệ Chuyên Gia Chẩn Đoán (Prolog)</h1>
+      <p class="disclaimer">
+        ⚠️ Công cụ tham khảo, không thay thế chẩn đoán của bác sĩ.
+      </p>
+
+      <section class="card">
+        <h2>1) Nhập triệu chứng tự do</h2>
+        <textarea
+          id="freeText"
+          rows="3"
+          placeholder="Ví dụ: sốt, ho, đau họng..."
+        ></textarea>
+        <button id="btnNormalize">Chuẩn hoá</button>
+        <div id="normResult"></div>
+      </section>
+
+      <section class="card">
+        <h2>2) Xác nhận triệu chứng</h2>
+        <div id="symptomList" class="checkboxes"></div>
+        <div class="actions">
+          <button id="btnSuggest">Hỏi thêm</button>
+          <button id="btnDiagnose">Chẩn đoán</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>3) Câu hỏi gợi ý</h2>
+        <div id="questions"></div>
+      </section>
+
+      <section class="card">
+        <h2>4) Kết quả</h2>
+        <div id="results"></div>
+        <div id="error" class="disclaimer" style="display: none"></div>
+      </section>
+    </div>
+
+    <script>
+      const freeText = document.getElementById("freeText");
+      const normResult = document.getElementById("normResult");
+      const symptomList = document.getElementById("symptomList");
+      const questionsDiv = document.getElementById("questions");
+      const resultsDiv = document.getElementById("results");
+
+      function currentSelectedSymptoms() {
+        const checks = symptomList.querySelectorAll("input[type=checkbox]");
+        const arr = [];
+        checks.forEach((ch) => {
+          if (ch.checked) arr.push(ch.value);
+        });
+        return arr;
+      }
+
+      function renderSymptoms(syms) {
+        symptomList.innerHTML = "";
+        syms.forEach((s) => {
+          const id = "sym_" + s;
+          const wrapper = document.createElement("div");
+          wrapper.className = "chk";
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.id = id;
+          cb.value = s;
+          cb.checked = true;
+          const label = document.createElement("label");
+          label.htmlFor = id;
+          label.innerText = s;
+          wrapper.appendChild(cb);
+          wrapper.appendChild(label);
+          symptomList.appendChild(wrapper);
+        });
+      }
+
+      document.getElementById("btnNormalize").onclick = async () => {
+        const text = freeText.value || "";
+        normResult.innerText = "Đang xử lý...";
+        try {
+          const resp = await fetch("/api/parse", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+          });
+          if (!resp.ok) {
+            throw new Error("API /api/parse lỗi " + resp.status);
+          }
+          const data = await resp.json();
+          document.getElementById("error").style.display = "none";
+          normResult.innerText =
+            "Triệu chứng nhận diện: " + (data.symptoms || []).join(", ");
+          renderSymptoms(data.symptoms || []);
+        } catch (e) {
+          const err = document.getElementById("error");
+          err.style.display = "block";
+          err.innerText =
+            e.message + ". Hãy kiểm tra dịch vụ backend và SWI-Prolog.";
+        }
+      };
+
+      document.getElementById("btnSuggest").onclick = async () => {
+        const syms = currentSelectedSymptoms();
+        questionsDiv.innerHTML = "Đang gợi ý...";
+        try {
+          const resp = await fetch("/api/questions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ symptoms: syms, max: 5 }),
+          });
+          if (!resp.ok) {
+            throw new Error("API /api/questions lỗi " + resp.status);
+          }
+          const data = await resp.json();
+          const q = data.questions || [];
+          document.getElementById("error").style.display = "none";
+          questionsDiv.innerHTML = "";
+          q.forEach((item) => {
+            const div = document.createElement("div");
+            div.className = "question";
+            div.innerHTML = `<strong>${item.symptom}</strong>: ${item.question} `;
+            const add = document.createElement("button");
+            add.innerText = "Có";
+            add.onclick = () => {
+              const cur = currentSelectedSymptoms();
+              if (!cur.includes(item.symptom)) {
+                cur.push(item.symptom);
+              }
+              renderSymptoms(cur);
+            };
+            const skip = document.createElement("button");
+            skip.innerText = "Không";
+            skip.onclick = () => {};
+            div.appendChild(add);
+            div.appendChild(skip);
+            questionsDiv.appendChild(div);
+          });
+        } catch (e) {
+          questionsDiv.innerHTML = "";
+          const err = document.getElementById("error");
+          err.style.display = "block";
+          err.innerText =
+            e.message + ". Hãy kiểm tra dịch vụ backend và SWI-Prolog.";
+        }
+      };
+
+      document.getElementById("btnDiagnose").onclick = async () => {
+        const syms = currentSelectedSymptoms();
+        resultsDiv.innerHTML = "Đang chẩn đoán...";
+        try {
+          const resp = await fetch("/api/diagnose", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ symptoms: syms }),
+          });
+          if (!resp.ok) {
+            throw new Error("API /api/diagnose lỗi " + resp.status);
+          }
+          const data = await resp.json();
+          const { results, triage, red_flags } = data;
+          const list = document.createElement("div");
+          list.className = "diagnosis-list";
+
+          const tri = document.createElement("div");
+          tri.className = "triage";
+          tri.innerHTML = `<strong>Mức độ:</strong> ${triage} ${
+            red_flags && red_flags.length ? "🚨" : ""
+          }`;
+          list.appendChild(tri);
+
+          (results || []).slice(0, 3).forEach((r) => {
+            const item = document.createElement("div");
+            item.className = "diag-item";
+            item.innerHTML = `
+              <div class="line"><strong>${r.disease}</strong> — độ tin cậy ${(
+              r.cf * 100
+            ).toFixed(1)}%</div>
+              <div class="line">→ Khoa gợi ý: ${r.department || "-"}</div>
+              <div class="line advice">${r.otc || ""}</div>
+            `;
+            list.appendChild(item);
+          });
+
+          const note = document.createElement("p");
+          note.className = "disclaimer";
+          note.innerText = "Lưu ý: Kết quả chỉ mang tính tham khảo.";
+          list.appendChild(note);
+
+          document.getElementById("error").style.display = "none";
+          resultsDiv.innerHTML = "";
+          resultsDiv.appendChild(list);
+        } catch (e) {
+          resultsDiv.innerHTML = "";
+          const err = document.getElementById("error");
+          err.style.display = "block";
+          err.innerText =
+            e.message + ". Hãy kiểm tra dịch vụ backend và SWI-Prolog.";
+        }
+      };
+    </script>
+  </body>
+</html>
